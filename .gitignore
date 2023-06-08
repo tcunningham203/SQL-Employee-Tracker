@@ -128,3 +128,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# suggested additions to git ignore
+node_modules
+package-lock.json
+.vscode
+.DS_Store
