@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
 const mysql = require('mysql2');
+const { table } = require('console.table');
 require('dotenv').config();
 
 
@@ -34,7 +35,8 @@ $$$$$$$$\\ $$ | $$ | $$ |$$$$$$$  |$$ |\\$$$$$$  |\\$$$$$$$ |\\$$$$$$$\\ \\$$$$$
          $$ |   $$ |  \\__| $$$$$$$ |$$ /      $$$$$$  / $$$$$$$$ |$$ |  \\__|  
          $$ |   $$ |      $$  __$$ |$$ |      $$  _$$<  $$   ____|$$ |        
          $$ |   $$ |      \\$$$$$$$ |\\$$$$$$$\\ $$ | \\$$\\ \\$$$$$$$\\ $$ |        
-         \\__|   \\__|       \\_______| \\_______|\\__|  \\__| \\_______|\\__|                                                                                
+         \\__|   \\__|       \\_______| \\_______|\\__|  \\__| \\_______|\\__|                                                                        
+         
 `;
 
 let logoDisplayed = false;
@@ -104,25 +106,31 @@ console.log('\n-----------------------------------------------------------------
 }
 
 function viewAllDepartments() {
-  const query = 'SELECT * FROM department';
-
-  connection.query(query, (error, results) => {
-    if (error) {
-      console.error('Error retrieving departments: ', error);
-      return;
-    }
-
-    console.log('\nAll Departments:');
-    results.forEach((department) => {
-      console.log(`- ${department.name}`);
+    const query = 'SELECT id, name AS department_name FROM department';
+  
+    connection.query(query, (error, results) => {
+      if (error) {
+        console.error('Error retrieving departments: ', error);
+        return;
+      }
+  
+      console.log('\nAll Departments:\n');
+      console.table(results);
+  
+      startPrompt();
     });
+  }
+  
+  
+  
+  
 
-    startPrompt();
-  });
-}
-
-function viewAllRoles() {
-    const query = 'SELECT * FROM role';
+  function viewAllRoles() {
+    const query = `
+      SELECT role.id, role.title AS job_title, department.name AS department_name, role.salary
+      FROM role
+      INNER JOIN department ON role.department_id = department.id
+    `;
   
     connection.query(query, (error, results) => {
       if (error) {
@@ -130,17 +138,29 @@ function viewAllRoles() {
         return;
       }
   
-      console.log('\nAll Roles:');
-      results.forEach((role) => {
-        console.log(`- ${role.title}`);
-      });
+      console.log('\nAll Roles:\n');
+      console.table(results);
   
       startPrompt();
     });
   }
 
   function viewAllEmployees() {
-    const query = 'SELECT * FROM employee';
+    const query = `
+      SELECT
+        employee.id,
+        employee.first_name,
+        employee.last_name,
+        role.title AS job_title,
+        department.name AS department,
+        role.salary,
+        CONCAT(manager.first_name, ' ', manager.last_name) AS manager
+      FROM
+        employee
+        LEFT JOIN role ON employee.role_id = role.id
+        LEFT JOIN department ON role.department_id = department.id
+        LEFT JOIN employee manager ON employee.manager_id = manager.id
+    `;
   
     connection.query(query, (error, results) => {
       if (error) {
@@ -148,14 +168,13 @@ function viewAllRoles() {
         return;
       }
   
-      console.log('\nAll Employees:');
-      results.forEach((employee) => {
-        console.log(`- ${employee.first_name} ${employee.last_name}`);
-      });
+      console.log('\nAll Employees:\n');
+      console.table(results);
   
       startPrompt();
     });
   }
+  
 
 
 function init() {
