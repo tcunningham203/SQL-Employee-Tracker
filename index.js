@@ -67,6 +67,7 @@ function startPrompt() {
                     'Add an employee',
                     'Update an employee\'s role',
                     'Update an employee\'s manager',
+                    'Delete a department, role, or employee',
                     'Exit Employee Tracker',
                 ],
             },
@@ -102,6 +103,9 @@ function startPrompt() {
                     break;
                 case 'Update an employee\'s manager':
                     updateEmployeeManagers();
+                    break;
+                case 'Delete a department, role, or employee':
+                    deleteFromDatabase();
                     break;
                 case 'Exit Employee Tracker':
                     connection.end();
@@ -252,36 +256,36 @@ function viewEmployeesByManager() {
 }
 
 function viewEmployeesByDepartment() {
-    const departmentChoices = []; 
+    const departmentChoices = [];
 
     const departmentQuery = 'SELECT * FROM department';
-  
+
     connection.query(departmentQuery, (error, departments) => {
-      if (error) {
-        console.error('Error retrieving departments: ', error);
-        return;
-      }
+        if (error) {
+            console.error('Error retrieving departments: ', error);
+            return;
+        }
 
-      departments.forEach((department) => {
-        departmentChoices.push({
-          name: department.name,
-          value: department.id
+        departments.forEach((department) => {
+            departmentChoices.push({
+                name: department.name,
+                value: department.id
+            });
         });
-      });
 
-      inquirer
-        .prompt([
-          {
-            type: 'list',
-            name: 'departmentId',
-            message: 'Please select a department to view the employees in that department:',
-            choices: departmentChoices
-          }
-        ])
-        .then((answers) => {
-          const departmentId = answers.departmentId;
-  
-          const query = `
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'departmentId',
+                    message: 'Please select a department to view the employees in that department:',
+                    choices: departmentChoices
+                }
+            ])
+            .then((answers) => {
+                const departmentId = answers.departmentId;
+
+                const query = `
             SELECT
               e.id AS employee_id,
               e.first_name,
@@ -298,25 +302,25 @@ function viewEmployeesByDepartment() {
             WHERE
               d.id = ?
           `;
-  
-          connection.query(query, [departmentId], (error, results) => {
-            if (error) {
-              console.error('Error retrieving employees by department: ', error);
-              return;
-            }
-  
-            console.log('\nEmployees by Department:\n');
-            console.table(results);
-  
-            startPrompt();
-          });
-        })
-        .catch((error) => {
-          console.error('Error selecting department: ', error);
-        });
+
+                connection.query(query, [departmentId], (error, results) => {
+                    if (error) {
+                        console.error('Error retrieving employees by department: ', error);
+                        return;
+                    }
+
+                    console.log('\nEmployees by Department:\n');
+                    console.table(results);
+
+                    startPrompt();
+                });
+            })
+            .catch((error) => {
+                console.error('Error selecting department: ', error);
+            });
     });
-  }
-  
+}
+
 
 function addDepartment() {
     inquirer
@@ -596,7 +600,7 @@ function updateEmployeeManagers() {
                     name: 'managerId',
                     message: 'Please select the new manager for this employee:',
                     choices: [
-                        { name: 'None', value: null }, 
+                        { name: 'None', value: null },
                         ...employees.map((employee) => ({
                             name: employee.employee,
                             value: employee.id,
@@ -617,6 +621,207 @@ function updateEmployeeManagers() {
                     console.log('\nEmployee manager updated successfully.\n');
                     startPrompt();
                 });
+            })
+            .catch((error) => {
+                console.error(error);
+                startPrompt();
+            });
+    });
+}
+
+function deleteFromDatabase() {
+    inquirer
+        .prompt([
+            {
+                type: 'list',
+                name: 'deleteOption',
+                message: 'Which table would you like to delete from?',
+                choices: ['Department', 'Role', 'Employee'],
+            },
+        ])
+        .then((answers) => {
+            switch (answers.deleteOption) {
+                case 'Department':
+                    deleteDepartment();
+                    break;
+                case 'Role':
+                    deleteRole();
+                    break;
+                case 'Employee':
+                    deleteEmployee();
+                    break;
+                default:
+                    console.log('Invalid selection');
+                    startPrompt();
+                    break;
+            }
+        })
+        .catch((error) => {
+            console.error(error);
+            startPrompt();
+        });
+}
+
+function deleteDepartment() {
+    connection.query('SELECT * FROM department', (error, departments) => {
+        if (error) {
+            console.error('Error retrieving departments: ', error);
+            startPrompt();
+            return;
+        }
+
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'departmentId',
+                    message: 'Please select the department you wish to delete:',
+                    choices: departments.map((department) => ({
+                        name: department.name,
+                        value: department.id,
+                    })),
+                },
+                {
+                    type: 'confirm',
+                    name: 'confirmDelete',
+                    message: 'Deleting cannot be undone! Are you sure you want to delete this department?',
+                    default: false,
+                },
+            ])
+            .then((answers) => {
+                const { departmentId, confirmDelete } = answers;
+
+                if (confirmDelete) {
+                    connection.query(
+                        'DELETE FROM department WHERE ?',
+                        {
+                            id: departmentId,
+                        },
+                        (error) => {
+                            if (error) {
+                                console.error('Error deleting department: ', error);
+                            } else {
+                                console.log('\nDepartment deleted successfully!\n');
+                            }
+                            startPrompt();
+                        }
+                    );
+                } else {
+                    console.log('\nDepartment deletion cancelled.\n');
+                    startPrompt();
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+                startPrompt();
+            });
+    });
+}
+
+function deleteRole() {
+    connection.query('SELECT * FROM role', (error, roles) => {
+        if (error) {
+            console.error('Error retrieving roles: ', error);
+            startPrompt();
+            return;
+        }
+
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'roleId',
+                    message: 'Please select the role you wish to delete:',
+                    choices: roles.map((role) => ({
+                        name: role.title,
+                        value: role.id,
+                    })),
+                },
+                {
+                    type: 'confirm',
+                    name: 'confirmDelete',
+                    message: 'Deleting cannot be undone! Are you sure you want to delete this role?',
+                    default: false,
+                },
+            ])
+            .then((answers) => {
+                const { roleId, confirmDelete } = answers;
+
+                if (confirmDelete) {
+                    connection.query(
+                        'DELETE FROM role WHERE ?',
+                        {
+                            id: roleId,
+                        },
+                        (error) => {
+                            if (error) {
+                                console.error('Error deleting role: ', error);
+                            } else {
+                                console.log('\nRole deleted successfully!\n');
+                            }
+                            startPrompt();
+                        }
+                    );
+                } else {
+                    console.log('\nRole deletion cancelled.\n');
+                    startPrompt();
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+                startPrompt();
+            });
+    });
+}
+
+function deleteEmployee() {
+    connection.query('SELECT * FROM employee', (error, employees) => {
+        if (error) {
+            console.error('Error retrieving employees: ', error);
+            startPrompt();
+            return;
+        }
+
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'employeeId',
+                    message: 'Please select the employee you wish to delete',
+                    choices: employees.map((employee) => ({
+                        name: `${employee.first_name} ${employee.last_name}`,
+                        value: employee.id,
+                    })),
+                },
+                {
+                    type: 'confirm',
+                    name: 'confirmDelete',
+                    message: 'Deleting cannot be undone! Are you sure you want to delete this employee?',
+                    default: false,
+                },
+            ])
+            .then((answers) => {
+                const { employeeId, confirmDelete } = answers;
+
+                if (confirmDelete) {
+                    connection.query(
+                        'DELETE FROM employee WHERE ?',
+                        {
+                            id: employeeId,
+                        },
+                        (error) => {
+                            if (error) {
+                                console.error('Error deleting employee: ', error);
+                            } else {
+                                console.log('\nEmployee deleted successfully!\n');
+                            }
+                            startPrompt();
+                        }
+                    );
+                } else {
+                    console.log('\nEmployee deletion cancelled.\n');
+                    startPrompt();
+                }
             })
             .catch((error) => {
                 console.error(error);
