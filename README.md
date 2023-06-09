@@ -1,10 +1,9 @@
 # SQL-Employee-Tracker
-A command-line application to manage a company's employee database, using Node.js, Inquirer, and MySQL.
-# SVG-logo-maker
 
 
 ## Description
-A Node.js command-line application that takes in user input to generate a logo and save it as an SVG file.
+A command-line application to manage a company's employee database, using Node.js, Inquirer, and MySQL.
+
 
 ## Table of Contents
 - [Video](#video)
@@ -39,3 +38,5 @@ Because previous projects also used Inquirer.js, I referenced that code regularl
 I used various learning resources like Stack Overflow and W3 schools to help with random questions I had.
 
 I used the Inquirer.js documentation a lot for this project to help create my code. 
+
+I used this generator to make the logo: https://patorjk.com/software/taag/#p=display&h=0&v=0&f=Big%20Money-nw&t=Employee%0A%20Tracker
