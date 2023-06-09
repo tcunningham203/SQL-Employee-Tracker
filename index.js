@@ -63,7 +63,8 @@ function startPrompt() {
                     'Add a department',
                     'Add a role',
                     'Add an employee',
-                    'Update an employee role',
+                    'Update an employee\'s role',
+                    'Update an employee\'s manager',
                     'Exit',
                 ],
             },
@@ -88,8 +89,11 @@ function startPrompt() {
                 case 'Add an employee':
                     addEmployee();
                     break;
-                case 'Update an employee role':
+                case 'Update an employee\'s role':
                     updateEmployeeRole();
+                    break;
+                case 'Update an employee\'s manager':
+                    updateEmployeeManagers();
                     break;
                 case 'Exit':
                     connection.end();
@@ -208,10 +212,227 @@ function addDepartment() {
 
 function addRole() {
     const departmentQuery = 'SELECT id, name FROM department';
-  
+
     connection.query(departmentQuery, (error, departments) => {
+        if (error) {
+            console.error('Error retrieving departments: ', error);
+            startPrompt();
+            return;
+        }
+
+        inquirer
+            .prompt([
+                {
+                    type: 'input',
+                    name: 'roleTitle',
+                    message: 'Enter the title of the role:',
+                    validate: (input) => {
+                        if (input.trim() === '') {
+                            return 'Please enter a valid role title.';
+                        }
+                        return true;
+                    },
+                },
+                {
+                    type: 'input',
+                    name: 'roleSalary',
+                    message: 'Enter the salary for the role:',
+                    validate: (input) => {
+                        if (!input.match(/^\d+$/)) {
+                            return 'Please enter a valid salary (numeric value).';
+                        }
+                        return true;
+                    },
+                },
+                {
+                    type: 'list',
+                    name: 'departmentId',
+                    message: 'Select the department for the role:',
+                    choices: departments.map((department) => ({
+                        name: department.name,
+                        value: department.id,
+                    })),
+                },
+            ])
+            .then((answers) => {
+                const query = 'INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)';
+                const roleTitle = answers.roleTitle;
+                const roleSalary = parseInt(answers.roleSalary);
+                const departmentId = answers.departmentId;
+
+                connection.query(query, [roleTitle, roleSalary, departmentId], (error, _results) => {
+                    if (error) {
+                        console.error('Error adding role: ', error);
+                        return;
+                    }
+
+                    console.log(`\nRole '${roleTitle}' added successfully.`);
+                    startPrompt();
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+                startPrompt();
+            });
+    });
+}
+
+function addEmployee() {
+    const rolesQuery = 'SELECT id, title FROM role';
+    const employeesQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS manager FROM employee';
+
+    connection.query(rolesQuery, (error, roles) => {
+        if (error) {
+            console.error('Error retrieving roles: ', error);
+            startPrompt();
+            return;
+        }
+
+        connection.query(employeesQuery, (error, employees) => {
+            if (error) {
+                console.error('Error retrieving employees: ', error);
+                startPrompt();
+                return;
+            }
+
+            inquirer
+                .prompt([
+                    {
+                        type: 'input',
+                        name: 'firstName',
+                        message: 'Enter the employee\'s first name:',
+                        validate: (input) => {
+                            if (input.trim() === '') {
+                                return 'Please enter a valid first name.';
+                            }
+                            return true;
+                        },
+                    },
+                    {
+                        type: 'input',
+                        name: 'lastName',
+                        message: 'Enter the employee\'s last name:',
+                        validate: (input) => {
+                            if (input.trim() === '') {
+                                return 'Please enter a valid last name.';
+                            }
+                            return true;
+                        },
+                    },
+                    {
+                        type: 'list',
+                        name: 'roleId',
+                        message: 'Select the role for the employee:',
+                        choices: roles.map((role) => ({
+                            name: role.title,
+                            value: role.id,
+                        })),
+                    },
+                    {
+                        type: 'list',
+                        name: 'managerId',
+                        message: 'Select the manager for the employee:',
+                        choices: [
+                            { name: 'None', value: null },
+                            ...employees.map((employee) => ({
+                                name: employee.manager,
+                                value: employee.id,
+                            })),
+                        ],
+                    },
+                ])
+                .then((answers) => {
+                    const query = 'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)';
+                    const firstName = answers.firstName;
+                    const lastName = answers.lastName;
+                    const roleId = answers.roleId;
+                    const managerId = answers.managerId;
+
+                    connection.query(query, [firstName, lastName, roleId, managerId], (error, _results) => {
+                        if (error) {
+                            console.error('Error adding employee: ', error);
+                            return;
+                        }
+
+                        console.log(`\nEmployee '${firstName} ${lastName}' added successfully.`);
+                        startPrompt();
+                    });
+                })
+                .catch((error) => {
+                    console.error(error);
+                    startPrompt();
+                });
+        });
+    });
+}
+
+function updateEmployeeRole() {
+    const employeesQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS employee FROM employee';
+    const rolesQuery = 'SELECT id, title FROM role';
+
+    connection.query(employeesQuery, (error, employees) => {
+        if (error) {
+            console.error('Error retrieving employees: ', error);
+            startPrompt();
+            return;
+        }
+
+        connection.query(rolesQuery, (error, roles) => {
+            if (error) {
+                console.error('Error retrieving roles: ', error);
+                startPrompt();
+                return;
+            }
+
+            inquirer
+                .prompt([
+                    {
+                        type: 'list',
+                        name: 'employeeId',
+                        message: 'Select the employee to update:',
+                        choices: employees.map((employee) => ({
+                            name: employee.employee,
+                            value: employee.id,
+                        })),
+                    },
+                    {
+                        type: 'list',
+                        name: 'roleId',
+                        message: 'Select the new role for the employee:',
+                        choices: roles.map((role) => ({
+                            name: role.title,
+                            value: role.id,
+                        })),
+                    },
+                ])
+                .then((answers) => {
+                    const { employeeId, roleId } = answers;
+                    const query = 'UPDATE employee SET role_id = ? WHERE id = ?';
+
+                    connection.query(query, [roleId, employeeId], (error, _results) => {
+                        if (error) {
+                            console.error('Error updating employee role: ', error);
+                            return;
+                        }
+
+                        console.log('\nEmployee role updated successfully.');
+                        startPrompt();
+                    });
+                })
+                .catch((error) => {
+                    console.error(error);
+                    startPrompt();
+                });
+        });
+    });
+}
+
+function updateEmployeeManagers() {
+    const employeesQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS employee FROM employee';
+  
+    connection.query(employeesQuery, (error, employees) => {
       if (error) {
-        console.error('Error retrieving departments: ', error);
+        console.error('Error retrieving employees: ', error);
         startPrompt();
         return;
       }
@@ -219,50 +440,38 @@ function addRole() {
       inquirer
         .prompt([
           {
-            type: 'input',
-            name: 'roleTitle',
-            message: 'Enter the title of the role:',
-            validate: (input) => {
-              if (input.trim() === '') {
-                return 'Please enter a valid role title.';
-              }
-              return true;
-            },
-          },
-          {
-            type: 'input',
-            name: 'roleSalary',
-            message: 'Enter the salary for the role:',
-            validate: (input) => {
-              if (!input.match(/^\d+$/)) {
-                return 'Please enter a valid salary (numeric value).';
-              }
-              return true;
-            },
+            type: 'list',
+            name: 'employeeId',
+            message: 'Select the employee to update:',
+            choices: employees.map((employee) => ({
+              name: employee.employee,
+              value: employee.id,
+            })),
           },
           {
             type: 'list',
-            name: 'departmentId',
-            message: 'Select the department for the role:',
-            choices: departments.map((department) => ({
-              name: department.name,
-              value: department.id,
-            })),
+            name: 'managerId',
+            message: 'Select the new manager for the employee:',
+            choices: [
+              { name: 'None', value: null }, // Option for no manager
+              ...employees.map((employee) => ({
+                name: employee.employee,
+                value: employee.id,
+              })),
+            ],
           },
         ])
         .then((answers) => {
-          const query = 'INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)';
-          const roleTitle = answers.roleTitle;
-          const roleSalary = parseInt(answers.roleSalary);
-          const departmentId = answers.departmentId;
+          const { employeeId, managerId } = answers;
+          const query = 'UPDATE employee SET manager_id = ? WHERE id = ?';
   
-          connection.query(query, [roleTitle, roleSalary, departmentId], (error, _results) => {
+          connection.query(query, [managerId, employeeId], (error, _results) => {
             if (error) {
-              console.error('Error adding role: ', error);
+              console.error('Error updating employee manager: ', error);
               return;
             }
   
-            console.log(`\nRole '${roleTitle}' added successfully.`);
+            console.log('\nEmployee manager updated successfully.');
             startPrompt();
           });
         })
@@ -272,157 +481,7 @@ function addRole() {
         });
     });
   }
-  
-  function addEmployee() {
-    const rolesQuery = 'SELECT id, title FROM role';
-    const employeesQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS manager FROM employee';
-  
-    connection.query(rolesQuery, (error, roles) => {
-      if (error) {
-        console.error('Error retrieving roles: ', error);
-        startPrompt();
-        return;
-      }
-  
-      connection.query(employeesQuery, (error, employees) => {
-        if (error) {
-          console.error('Error retrieving employees: ', error);
-          startPrompt();
-          return;
-        }
-  
-        inquirer
-          .prompt([
-            {
-              type: 'input',
-              name: 'firstName',
-              message: 'Enter the employee\'s first name:',
-              validate: (input) => {
-                if (input.trim() === '') {
-                  return 'Please enter a valid first name.';
-                }
-                return true;
-              },
-            },
-            {
-              type: 'input',
-              name: 'lastName',
-              message: 'Enter the employee\'s last name:',
-              validate: (input) => {
-                if (input.trim() === '') {
-                  return 'Please enter a valid last name.';
-                }
-                return true;
-              },
-            },
-            {
-              type: 'list',
-              name: 'roleId',
-              message: 'Select the role for the employee:',
-              choices: roles.map((role) => ({
-                name: role.title,
-                value: role.id,
-              })),
-            },
-            {
-              type: 'list',
-              name: 'managerId',
-              message: 'Select the manager for the employee:',
-              choices: [
-                { name: 'None', value: null },
-                ...employees.map((employee) => ({
-                  name: employee.manager,
-                  value: employee.id,
-                })),
-              ],
-            },
-          ])
-          .then((answers) => {
-            const query = 'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)';
-            const firstName = answers.firstName;
-            const lastName = answers.lastName;
-            const roleId = answers.roleId;
-            const managerId = answers.managerId;
-  
-            connection.query(query, [firstName, lastName, roleId, managerId], (error, _results) => {
-              if (error) {
-                console.error('Error adding employee: ', error);
-                return;
-              }
-  
-              console.log(`\nEmployee '${firstName} ${lastName}' added successfully.`);
-              startPrompt();
-            });
-          })
-          .catch((error) => {
-            console.error(error);
-            startPrompt();
-          });
-      });
-    });
-  }
-  
-  function updateEmployeeRole() {
-    const employeesQuery = 'SELECT id, CONCAT(first_name, " ", last_name) AS employee FROM employee';
-    const rolesQuery = 'SELECT id, title FROM role';
-  
-    connection.query(employeesQuery, (error, employees) => {
-      if (error) {
-        console.error('Error retrieving employees: ', error);
-        startPrompt();
-        return;
-      }
-  
-      connection.query(rolesQuery, (error, roles) => {
-        if (error) {
-          console.error('Error retrieving roles: ', error);
-          startPrompt();
-          return;
-        }
-  
-        inquirer
-          .prompt([
-            {
-              type: 'list',
-              name: 'employeeId',
-              message: 'Select the employee to update:',
-              choices: employees.map((employee) => ({
-                name: employee.employee,
-                value: employee.id,
-              })),
-            },
-            {
-              type: 'list',
-              name: 'roleId',
-              message: 'Select the new role for the employee:',
-              choices: roles.map((role) => ({
-                name: role.title,
-                value: role.id,
-              })),
-            },
-          ])
-          .then((answers) => {
-            const { employeeId, roleId } = answers;
-            const query = 'UPDATE employee SET role_id = ? WHERE id = ?';
-  
-            connection.query(query, [roleId, employeeId], (error, _results) => {
-              if (error) {
-                console.error('Error updating employee role: ', error);
-                return;
-              }
-  
-              console.log('\nEmployee role updated successfully.');
-              startPrompt();
-            });
-          })
-          .catch((error) => {
-            console.error(error);
-            startPrompt();
-          });
-      });
-    });
-  }
-  
+
 
 function init() {
     connection.connect((error) => {
