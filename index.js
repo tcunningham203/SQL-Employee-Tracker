@@ -37,11 +37,16 @@ $$$$$$$$\\ $$ | $$ | $$ |$$$$$$$  |$$ |\\$$$$$$  |\\$$$$$$$ |\\$$$$$$$\\ \\$$$$$
          \\__|   \\__|       \\_______| \\_______|\\__|  \\__| \\_______|\\__|                                                                                
 `;
 
-
+let logoDisplayed = false;
 
 function startPrompt() {
 
-    console.log(logo);
+    if (!logoDisplayed) {
+        console.log(logo);
+        logoDisplayed = true;
+      }
+      
+console.log('\n--------------------------------------------------------------------------\n');
 
   inquirer
     .prompt([
@@ -97,6 +102,61 @@ function startPrompt() {
       connection.end();
     });
 }
+
+function viewAllDepartments() {
+  const query = 'SELECT * FROM department';
+
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error retrieving departments: ', error);
+      return;
+    }
+
+    console.log('\nAll Departments:');
+    results.forEach((department) => {
+      console.log(`- ${department.name}`);
+    });
+
+    startPrompt();
+  });
+}
+
+function viewAllRoles() {
+    const query = 'SELECT * FROM role';
+  
+    connection.query(query, (error, results) => {
+      if (error) {
+        console.error('Error retrieving roles: ', error);
+        return;
+      }
+  
+      console.log('\nAll Roles:');
+      results.forEach((role) => {
+        console.log(`- ${role.title}`);
+      });
+  
+      startPrompt();
+    });
+  }
+
+  function viewAllEmployees() {
+    const query = 'SELECT * FROM employee';
+  
+    connection.query(query, (error, results) => {
+      if (error) {
+        console.error('Error retrieving employees: ', error);
+        return;
+      }
+  
+      console.log('\nAll Employees:');
+      results.forEach((employee) => {
+        console.log(`- ${employee.first_name} ${employee.last_name}`);
+      });
+  
+      startPrompt();
+    });
+  }
+
 
 function init() {
   connection.connect((error) => {
