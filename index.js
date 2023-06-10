@@ -62,6 +62,7 @@ function startPrompt() {
                     'View all employees',
                     'View employees by manager',
                     'View employees by department',
+                    'View the budget of a department',
                     'Add a department',
                     'Add a role',
                     'Add an employee',
@@ -88,6 +89,9 @@ function startPrompt() {
                     break;
                 case 'View employees by department':
                     viewEmployeesByDepartment();
+                    break;
+                case 'View the budget of a department':
+                    viewDepartmentBudgets();
                     break;
                 case 'Add a department':
                     addDepartment();
@@ -320,6 +324,77 @@ function viewEmployeesByDepartment() {
             });
     });
 }
+
+function viewDepartmentBudgets() {
+    connection.query(
+      `SELECT department.id, department.name, SUM(role.salary) AS budget
+      FROM department
+      INNER JOIN role ON department.id = role.department_id
+      INNER JOIN employee ON role.id = employee.role_id
+      GROUP BY department.id, department.name`,
+      (error, results) => {
+        if (error) {
+          console.error('Error retrieving department budgets: ', error);
+          showMainMenu();
+          return;
+        }
+  
+        inquirer
+          .prompt([
+            {
+              type: 'list',
+              name: 'departmentId',
+              message: 'Please select the department whose budget you wish to view:',
+              choices: results.map((result) => ({
+                name: `${result.name}`,
+                value: result.id,
+              })),
+            },
+          ])
+          .then((answers) => {
+            const { departmentId } = answers;
+            const selectedDepartment = results.find((result) => result.id === departmentId);
+  
+            console.log(`\nThe total budget for ${selectedDepartment.name} is ${selectedDepartment.budget}`);
+  
+            // Display employee table for the selected department
+            const employeeQuery = `
+              SELECT
+                employee.id,
+                employee.first_name,
+                employee.last_name,
+                role.title AS job_title,
+                role.salary
+              FROM
+                employee
+                INNER JOIN role ON employee.role_id = role.id
+                INNER JOIN department ON role.department_id = department.id
+              WHERE
+                department.id = ${selectedDepartment.id}
+            `;
+  
+            connection.query(employeeQuery, (error, employees) => {
+              if (error) {
+                console.error('Error retrieving employees: ', error);
+                startPrompt();
+                return;
+              }
+  
+              console.log(`\nHere is a breakdown of the ${selectedDepartment.name} department:\n`);
+              console.table(employees);
+  
+              startPrompt();
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+            startPrompt();
+          });
+      }
+    );
+  }
+  
+  
 
 
 function addDepartment() {
